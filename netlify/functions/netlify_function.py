@@ -123,7 +123,7 @@ def handler(event, context):
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Stripe-Signature',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
     }
 
     # Handle CORS preflight
