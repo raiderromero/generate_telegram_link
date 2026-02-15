@@ -117,21 +117,27 @@ def unban_user_sync(user_id):
 
 def handler(event, context):
     """Serverless function handler"""
+    
+    # Default CORS headers for all responses
+    cors_headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Stripe-Signature',
+        'Content-Type': 'application/json'
+    }
 
     # Handle CORS preflight
-    if event.get('httpMethod') == 'OPTIONS':
+    http_method = event.get('httpMethod', event.get('requestContext', {}).get('http', {}).get('method', 'POST'))
+    
+    if http_method == 'OPTIONS':
         return {
             'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Stripe-Signature',
-            },
+            'headers': cors_headers,
             'body': ''
         }
 
     # Handle unban request
-    if event.get('httpMethod') == 'POST':
+    if http_method == 'POST':
         try:
             body = json.loads(event.get('body', '{}'))
 
@@ -142,10 +148,7 @@ def handler(event, context):
                 if not user_id:
                     return {
                         'statusCode': 400,
-                        'headers': {
-                            'Access-Control-Allow-Origin': '*',
-                            'Content-Type': 'application/json',
-                        },
+                        'headers': cors_headers,
                         'body': json.dumps({'success': False, 'message': 'user_id is required'})
                     }
 
@@ -154,10 +157,7 @@ def handler(event, context):
 
                 return {
                     'statusCode': 200,
-                    'headers': {
-                        'Access-Control-Allow-Origin': '*',
-                        'Content-Type': 'application/json',
-                    },
+                    'headers': cors_headers,
                     'body': json.dumps(result)
                 }
         except json.JSONDecodeError:
@@ -165,25 +165,19 @@ def handler(event, context):
         except Exception as e:
             return {
                 'statusCode': 500,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Content-Type': 'application/json',
-                },
+                'headers': cors_headers,
                 'body': json.dumps({'success': False, 'message': str(e)})
             }
 
     # Handle GET request for invite link retrieval
-    if event.get('httpMethod') == 'GET':
+    if http_method == 'GET':
         path = event.get('path', '')
         payment_id = path.split('/')[-1]
 
         if payment_id in invite_links:
             return {
                 'statusCode': 200,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Content-Type': 'application/json',
-                },
+                'headers': cors_headers,
                 'body': json.dumps({
                     'invite_link': invite_links[payment_id],
                     'status': 'ready'
@@ -191,16 +185,13 @@ def handler(event, context):
             }
         return {
             'statusCode': 202,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Content-Type': 'application/json',
-            },
+            'headers': cors_headers,
             'body': json.dumps({'status': 'processing'})
         }
 
     # Handle Stripe webhook (only if it has Stripe signature)
     stripe_signature = event.get('headers', {}).get('stripe-signature', '')
-    if stripe_signature and event.get('httpMethod') == 'POST':
+    if stripe_signature and http_method == 'POST':
         try:
             payload = event.get('body', '')
 
@@ -224,6 +215,7 @@ def handler(event, context):
 
             return {
                 'statusCode': 200,
+                'headers': cors_headers,
                 'body': json.dumps({'received': True})
             }
 
@@ -231,17 +223,15 @@ def handler(event, context):
             print(f"Stripe Error: {str(e)}")
             return {
                 'statusCode': 400,
+                'headers': cors_headers,
                 'body': json.dumps({'error': str(e)})
             }
 
     # Handle health check
-    if event.get('httpMethod') == 'GET' and 'health' in event.get('path', ''):
+    if http_method == 'GET' and 'health' in event.get('path', ''):
         return {
             'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Content-Type': 'application/json',
-            },
+            'headers': cors_headers,
             'body': json.dumps({
                 'status': 'healthy',
                 'bot_token_present': bool(TELEGRAM_BOT_TOKEN),
@@ -253,10 +243,7 @@ def handler(event, context):
     # Default response if no handler matched
     return {
         'statusCode': 400,
-        'headers': {
-            'Access-Control-Allow-Origin': '*',
-            'Content-Type': 'application/json',
-        },
+        'headers': cors_headers,
         'body': json.dumps({'error': 'Invalid request'})
     }
 
